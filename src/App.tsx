@@ -1,7 +1,9 @@
+// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AgentProvider } from './contexts/AgentContext';
 import { AuthProvider } from './contexts/AuthContext';
+import NotificationProvider from './components/Notification/NotificationProvider';
 import AppRoutes from './routes';
 import { AgentConfig } from './api/types';
 import './styles/globals.css';
@@ -40,11 +42,13 @@ const App: React.FC = () => {
   
   return (
     <Router>
-      <AuthProvider>
-        <AgentProvider config={config} useMockApi={useMockApi}>
-          <AppRoutes />
-        </AgentProvider>
-      </AuthProvider>
+      <NotificationProvider>
+        <AuthProvider>
+          <AgentProvider config={config} useMockApi={useMockApi}>
+            <AppRoutes />
+          </AgentProvider>
+        </AuthProvider>
+      </NotificationProvider>
     </Router>
   );
 };

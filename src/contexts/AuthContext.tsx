@@ -1,89 +1,144 @@
+// src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import authService, { User } from '../services/authService';
 
-// Simple user interface
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
+// Auth context type
 interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
-  login: () => Promise<void>;
+  error: string | null;
+  login: (email?: string, password?: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginWithFacebook: () => Promise<void>;
+  loginWithTwitter: () => Promise<void>;
   logout: () => Promise<void>;
+  clearError: () => void;
+  hasRole: (role: string) => boolean; // Added hasRole method
 }
 
+// Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Provider component
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Check if user is logged in on mount
+  // Check if user is already logged in on mount
   useEffect(() => {
     const checkLoginStatus = () => {
-      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-      
-      if (isLoggedIn) {
-        const userData = localStorage.getItem('user');
-        if (userData) {
-          try {
-            setCurrentUser(JSON.parse(userData));
-          } catch (e) {
-            // Handle parse error
-            setCurrentUser(null);
-            localStorage.removeItem('isLoggedIn');
-            localStorage.removeItem('user');
-          }
-        }
+      if (authService.isAuthenticated()) {
+        setCurrentUser(authService.getCurrentUser());
       }
-      
       setIsLoading(false);
     };
     
     checkLoginStatus();
   }, []);
 
-  // Login method
-  const login = async () => {
-    setIsLoading(true);
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const dummyUser = {
-      id: 'dummy-user-id',
-      name: 'Demo User',
-      email: 'demo@example.com'
-    };
-    
-    setCurrentUser(dummyUser);
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('user', JSON.stringify(dummyUser));
-    
-    setIsLoading(false);
+  // Regular login method
+  const login = async (email?: string, password?: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const user = await authService.login(email, password);
+      setCurrentUser(user);
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Google login method
+  const loginWithGoogle = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const user = await authService.loginWithGoogle();
+      setCurrentUser(user);
+    } catch (err) {
+      console.error('Google login error:', err);
+      setError(err instanceof Error ? err.message : 'Google login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Facebook login method
+  const loginWithFacebook = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const user = await authService.loginWithFacebook();
+      setCurrentUser(user);
+    } catch (err) {
+      console.error('Facebook login error:', err);
+      setError(err instanceof Error ? err.message : 'Facebook login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Twitter login method
+  const loginWithTwitter = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const user = await authService.loginWithTwitter();
+      setCurrentUser(user);
+    } catch (err) {
+      console.error('Twitter login error:', err);
+      setError(err instanceof Error ? err.message : 'Twitter login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Logout method
   const logout = async () => {
-    setIsLoading(true);
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    setCurrentUser(null);
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('user');
-    
-    setIsLoading(false);
+    try {
+      setIsLoading(true);
+      await authService.logout();
+      setCurrentUser(null);
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Still clear the user even if the API call fails
+      setCurrentUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // Clear error
+  const clearError = () => {
+    setError(null);
+  };
+
+  // Check if user has a specific role
+  const hasRole = (role: string): boolean => {
+    // Use the authService to check roles
+    return currentUser?.roles?.includes(role) || false;
+  };
+
+  // Context value
   const value = {
     currentUser,
     isLoading,
+    error,
     login,
-    logout
+    loginWithGoogle,
+    loginWithFacebook,
+    loginWithTwitter,
+    logout,
+    clearError,
+    hasRole
   };
 
   return (
@@ -97,6 +152,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   );
 };
 
+// Hook for using auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

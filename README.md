@@ -1,110 +1,183 @@
-# AWS Bedrock Agent Chat SPA Project - Development History
+# AWS Bedrock Agent Chat SPA
 
-## Project Overview
+A secure, feature-rich Single Page Application for interacting with AWS Bedrock agents with enhanced security features and rich UI components.
 
-This document chronicles the development of an AWS Bedrock Agent Chat SPA (Single Page Application), a React-based interface for interacting with AWS Bedrock agents with rich UI features.
+## Overview
 
-## Initial Development
+This React-based application provides a modern interface for interacting with AWS Bedrock agents. It features a comprehensive security implementation that ensures your AWS credentials remain protected while still allowing for development with mock data.
 
-The project began with creating a "hello world" TypeScript code example for communication between AWS Bedrock agents using Google's A2A protocol. We established the foundation for agent-to-agent communication with proper TypeScript interfaces.
+![AWS Bedrock Agent Chat](./screenshot.png)
 
-## Core Architecture Implementation
+## Features
 
-We built a comprehensive React SPA with TypeScript with the following structure:
+### Core Functionality
+- Rich chat interface with session management
+- Support for multiple content types (text, video, choices)
+- Responsive design for desktop and mobile
+- Session history and persistence
 
-1. **Project Structure and Configuration**
-   - Set up with Vite, React, TypeScript, and TailwindCSS
-   - Configured Storybook for component documentation
+### Security Features
+- Token-based authentication system
+- Rate limiting to prevent API abuse
+- Session management with automatic timeout
+- Input validation to prevent injection attacks
+- Security notifications and alerts
+- Role-based access control
 
-2. **API Layer**
-   - Created agent API service interfaces
-   - Implemented mock service for testing without AWS credentials
-   - Added A2A protocol support
+### Developer Experience
+- Mock mode for development without AWS credentials
+- TypeScript for improved type safety
+- Storybook component documentation
+- Comprehensive error handling
 
-3. **UI Components**
-   - Built chat interface with bubbles, input area, session management
-   - Added responsive design with sidebar toggle
-   - Implemented rich content types (text, video, choices)
+## Getting Started
 
-4. **State Management**
-   - Built context providers for agent state
-   - Implemented authentication flow with login/logout
-   - Added localStorage persistence for settings and sessions
+### Prerequisites
+- Node.js 16+
+- npm or yarn
+- Modern web browser
 
-## Troubleshooting TypeScript Errors
+### Installation
 
-We addressed numerous TypeScript compilation issues:
+1. Clone the repository
+   ```bash
+   git clone <repository-url>
+   cd aws-bedrock-agent-chat-spa
+   ```
 
-1. **Type Definitions**
-   - Properly exported and defined interfaces
-   - Added MessageContent types for rich content
-   - Fixed unused variables and imports
+2. Install dependencies
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
 
-2. **Content Type Integration**
-   - Enhanced message structure to support rich content types
-   - Implemented rendering for videos, radio buttons, checkboxes
-   - Fixed JSON parsing for agent responses
+3. Start the development server
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-3. **Authentication**
-   - Added a dummy login system for development
-   - Implemented protected routes
-   - Created user context and persistence
+4. Access the application at http://localhost:5173
 
-## Key Features Added
+### Authentication
 
-1. **Rich Content Types**
-   - Text messages
-   - Embedded YouTube videos
-   - Radio button choices
-   - Checkbox multi-selections
+The application uses a simulated authentication system in development mode:
 
-2. **User Experience**
-   - Session management with history
-   - Settings configuration
-   - Responsive design for mobile and desktop
-   - Loading states and animations
+- Click the "One-Click Demo Login" button to access the chat interface
+- Login is persisted in localStorage
+- User session can be configured to timeout after inactivity
 
-3. **Developer Experience**
-   - Storybook component library
-   - TypeScript type safety
-   - Mock API for development without credentials
+### Configuration
 
-## Major Challenges Overcome
+You can customize the application behavior through the Settings page:
 
-1. **A2A Protocol Integration**
-   - Implemented Google's Agent-to-Agent protocol
-   - Created adapter for AWS Bedrock agents
+1. **General Settings**
+   - API Mode (Mock/Production)
+   - AWS Region
+   - Agent ID
+   - Agent Alias ID
 
-2. **TypeScript Configuration**
-   - Resolved numerous type errors
-   - Enhanced type definitions for rich content
+2. **Security Settings**
+   - Session Timeout
+   - Session History
+   - Rate Limiting
 
-3. **JSON Parsing**
-   - Fixed JSON parsing in agent responses
-   - Implemented proper content type rendering
+## Development Guide
 
-4. **Authentication Flow**
-   - Created dummy login system
-   - Implemented protected routes
+### Project Structure
 
-## Final Implementation
+```
+src/
+├── api/                  # API services and types
+├── components/           # UI components
+├── contexts/             # React contexts for state management
+├── hooks/                # Custom React hooks
+├── pages/                # Application pages
+├── services/             # Core services (auth, security, etc.)
+├── styles/               # Global styles
+└── utils/                # Utility functions
+```
 
-The final implementation includes:
+### Mock Mode vs Production Mode
 
-1. A fully functional chat interface for interacting with AWS Bedrock agents
-2. Support for rich content types including videos and interactive elements
-3. Session management and persistence
-4. Settings for configuring AWS Bedrock integration
-5. Authentication flow with login/logout
+The application can operate in two modes:
 
-The application is now capable of displaying various content types from agent responses, providing a rich interactive experience beyond simple text messages.
+1. **Mock Mode (Default)**
+   - Uses simulated API responses
+   - No AWS credentials required
+   - Security features still active for testing
 
-## Future Enhancements
+2. **Production Mode**
+   - Connects to real AWS Bedrock agents
+   - Requires proper AWS configuration
+   - Backend proxy recommended for production use
 
-Potential future enhancements include:
+### Testing Chat Features
 
-1. Real Firebase authentication integration
-2. More content types (images, documents, etc.)
-3. Improved multi-agent collaboration
-4. Advanced UI customization options
-5. Analytics and conversation history export
+The mock API provides different response types based on keywords:
+
+- Type "video" to get a video response
+- Type "options" or "choose" to get radio button choices
+- Type "features" or "select" to get checkbox options
+- Type "security" to get security best practices
+- Any other input will get a default text response
+
+### Building for Production
+
+```bash
+npm run build
+# or
+yarn build
+```
+
+## Security Implementation
+
+### Authentication
+
+The secure authentication system includes:
+
+- JWT token-based authentication
+- Automatic token refresh
+- Session timeout mechanism
+- Role-based access control
+
+### API Security
+
+All communication with AWS Bedrock is secured:
+
+- Request validation prevents injection attacks
+- Rate limiting protects against abuse
+- Proper error handling with user feedback
+
+### Backend Proxy (Production)
+
+For production use, a secure backend proxy should be implemented to:
+
+- Protect AWS credentials
+- Provide additional security layers
+- Handle authentication validation
+- Implement server-side rate limiting
+
+## Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests and linting
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+## License
+
+[MIT License](LICENSE)
+
+## Acknowledgements
+
+- AWS Bedrock documentation
+- Google's A2A protocol specification
+- Security best practices from OWASP
