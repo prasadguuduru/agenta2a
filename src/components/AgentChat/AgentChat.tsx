@@ -15,7 +15,7 @@ export const AgentChat: React.FC = () => {
     createNewSession,
     switchSession
   } = useAgent();
-  
+  console.log(" #####sendMessage       ");
   const [showSidebar, setShowSidebar] = useState(true);
   
   const toggleSidebar = () => {

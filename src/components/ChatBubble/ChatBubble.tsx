@@ -15,7 +15,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   
   // Function to render different content types
   const renderContent = (content: MessageContent) => {
-    console.log("##############HELOO");
+    console.log("##############HELOO"+JSON.stringify(content));
     switch (content.type) {
       case 'text':
         return <div className="whitespace-pre-wrap">{content.text}</div>;

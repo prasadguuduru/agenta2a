@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AgentApiService, MockAgentApiService, createAgentApi, createMockAgentApi } from '../api';
-import { AgentConfig, ChatSession, Message } from '../api/types';
+import { AgentConfig, ChatSession, Message, MessageContent } from '../api/types';
 
 interface AgentContextProps {
   api: AgentApiService | MockAgentApiService;
@@ -128,16 +128,31 @@ export const AgentProvider = ({ children, config, useMockApi = false }: AgentPro
       updateSession(updatedSession);
       
       // Send to the agent API
+      console.log("Sending message to API:", content);
       const response = await api.sendMessage({
         inputText: content,
         sessionId: currentSession.id
       });
+      console.log("Received API response:", response);
+      
+      // Parse the agent response
+      let agentContent: MessageContent[] = [];
+      try {
+        // Try to parse the response.completion as JSON
+        console.log("Attempting to parse response:", response.completion);
+        agentContent = JSON.parse(response.completion);
+        console.log("Successfully parsed response:", agentContent);
+      } catch (parseError) {
+        console.error("Error parsing response:", parseError);
+        // Fallback to simple text if parsing fails
+        agentContent = [{ type: 'text', text: response.completion }];
+      }
       
       // Create agent message from response
       const agentMessage: Message = {
         id: uuidv4(),
         role: 'agent',
-        content: response.completion,
+        content: agentContent,
         timestamp: Date.now()
       };
       
