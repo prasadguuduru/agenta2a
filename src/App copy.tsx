@@ -1,11 +1,11 @@
 // src/App.tsx
+// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AgentProvider } from './contexts/AgentContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { StripeProvider } from './contexts/StripeContext';
 import NotificationProvider from './components/Notification/NotificationProvider';
-import FloatingChatAgent from './components/FloatingChatAgent';
 import AppRoutes from './routes';
 import { AgentConfig } from './api/types';
 import './styles/globals.css';
@@ -49,7 +49,6 @@ const App: React.FC = () => {
           <StripeProvider>
             <AgentProvider config={config} useMockApi={useMockApi}>
               <AppRoutes />
-              <FloatingChatAgent />
             </AgentProvider>
           </StripeProvider>
         </AuthProvider>

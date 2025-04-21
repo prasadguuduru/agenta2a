@@ -360,6 +360,61 @@ const generateMockResponse = (prompt: string): MessageContent[] => {
       }
     ];
   }
+
+  else if (promptLower.includes('payment') || promptLower.includes('checkout') || promptLower.includes('buy')) {
+    return [
+      {
+        type: 'text',
+        text: 'I can process your payment. Please review the details below:'
+      },
+      {
+        type: 'payment',
+        title: 'Complete Your Purchase',
+        description: 'Please select your preferred payment method and enter your details.',
+        totalAmount: 99.99,
+        currency: 'USD',
+        items: [
+          {
+            id: 'item-1',
+            name: 'AWS Bedrock Premium Plan',
+            description: 'Monthly subscription for AWS Bedrock premium features',
+            price: 79.99,
+            currency: 'USD',
+            quantity: 1
+          },
+          {
+            id: 'item-2',
+            name: 'Additional Tokens',
+            description: '1,000,000 extra tokens',
+            price: 20.00,
+            currency: 'USD',
+            quantity: 1
+          }
+        ],
+        paymentMethods: [
+          {
+            type: 'card',
+            label: 'Credit/Debit Card',
+            description: 'Pay with Visa, Mastercard, or American Express'
+          },
+          {
+            type: 'bank',
+            label: 'Bank Account',
+            description: 'Direct deposit from your bank account'
+          },
+          {
+            type: 'wallet',
+            label: 'Digital Wallet',
+            description: 'Pay with PayPal, Apple Pay, or Google Pay'
+          }
+        ],
+        submitButton: {
+          text: 'Complete Payment',
+          onSubmit: 'processPayment'
+        }
+      }
+    ];
+  }
   
   // Default text response
   else {
@@ -562,7 +617,53 @@ export class MockAgentApiService {
           }
         ];
         break;
-        
+        case 'processPayment':
+  console.log('Processing payment with data:', formData);
+  
+  // Simulate payment processing with a fixed delay
+  // This ensures the UI has time to show the processing state
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Mock successful payment (in a real app, this would call Stripe API)
+  const paymentSuccess = Math.random() > 0.2; // 80% success rate for demo
+  
+  if (paymentSuccess) {
+    responseContent = [
+      {
+        type: 'text',
+        text: 'Your payment has been processed successfully!'
+      },
+      {
+        type: 'paymentConfirmation',
+        title: 'Payment Confirmation',
+        status: 'success',
+        transactionId: `txn_${Math.random().toString(36).substring(2, 11)}`,
+        amount: formData.amount || 99.99,
+        currency: formData.currency || 'USD',
+        timestamp: new Date().toISOString(),
+        receiptUrl: 'https://example.com/receipt'
+      }
+    ];
+  } else {
+    responseContent = [
+      {
+        type: 'text',
+        text: 'There was an issue processing your payment.'
+      },
+      {
+        type: 'paymentConfirmation',
+        title: 'Payment Failed',
+        status: 'failed',
+        transactionId: `txn_${Math.random().toString(36).substring(2, 11)}`,
+        amount: formData.amount || 99.99,
+        currency: formData.currency || 'USD',
+        timestamp: new Date().toISOString()
+      }
+    ];
+  }
+  
+  console.log('Payment processing complete, success:', paymentSuccess);
+  break;
       // Additional submission handlers for other actions...
       
       default:

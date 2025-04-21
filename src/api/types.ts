@@ -185,7 +185,8 @@ export interface StepsContent {
 // Union type for all content types
 export type MessageContent = TextContent | ChoiceContent | VideoContent | FormContent |
                             ConfirmationContent | ProgressContent | SecurityReportContent |
-                            SecurityDashboardContent | StepsContent;
+                            SecurityDashboardContent | StepsContent | PaymentContent | 
+                            PaymentConfirmationContent;
 
 // Message interface
 export interface Message {
@@ -228,4 +229,48 @@ export interface AgentResponse {
   requestId: string;
   promptTokens?: number;
   completionTokens?: number;
+}
+
+
+// Payment method option
+export interface PaymentMethodOption {
+  type: 'card' | 'bank' | 'wallet';
+  label: string;
+  description?: string;
+  icon?: string;
+}
+
+// Product item in a payment
+export interface ProductItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  currency: string;
+  quantity: number;
+  imageUrl?: string;
+}
+
+// Payment content for Stripe checkout
+export interface PaymentContent {
+  type: 'payment';
+  title: string;
+  description?: string;
+  totalAmount: number;
+  currency: string;
+  items?: ProductItem[];
+  paymentMethods: PaymentMethodOption[];
+  submitButton: Button;
+}
+
+// Payment confirmation content
+export interface PaymentConfirmationContent {
+  type: 'paymentConfirmation';
+  title: string;
+  status: 'success' | 'processing' | 'failed';
+  transactionId: string;
+  amount: number;
+  currency: string;
+  timestamp: string;
+  receiptUrl?: string;
 }

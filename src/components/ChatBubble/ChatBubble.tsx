@@ -1,8 +1,9 @@
 // src/components/ChatBubble/ChatBubble.tsx
-import React, { useState } from 'react';
-import { Message, MessageContent, Option } from '../../api/types';
+import React, { useState, useEffect } from 'react';
+import { Message, MessageContent, Option, PaymentContent } from '../../api/types';
 import { formatTimestamp } from '../../utils/agentUtils';
 import { useAgent } from '../../hooks/useAgent';
+import notificationService from '../../services/notificationService';
 
 export interface ChatBubbleProps {
   message: Message;
@@ -14,11 +15,56 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   isConsecutive = false
 }) => {
   const isUser = message.role === 'user';
-  const { sendMessage } = useAgent();
+  const { sendMessage, currentSession } = useAgent();
+  const messages = currentSession?.messages || [];
   
   // State for form values
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [selectedOptions, setSelectedOptions] = useState<Record<string, any>>({});
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  
+  // Track the latest message to detect responses after payment submission
+  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+  
+  // This effect monitors for new messages and resets the payment processing state
+  useEffect(() => {
+    if (messages.length > 0) {
+      const latestMessage = messages[messages.length - 1];
+      
+      // If we have a new message and we're in processing state, reset the processing state
+      if (latestMessage.id !== lastMessageId && isProcessing) {
+        setIsProcessing(false);
+        setSelectedPaymentMethod(null);
+      }
+      
+      // Update the last message ID
+      setLastMessageId(latestMessage.id);
+    }
+  }, [messages, isProcessing, lastMessageId]);
+  
+  // Safety timeout to prevent UI from getting stuck
+  useEffect(() => {
+    // Safety mechanism: reset processing state after a timeout
+    // This prevents the UI from being stuck if something goes wrong
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    if (isProcessing) {
+      timeoutId = setTimeout(() => {
+        setIsProcessing(false);
+        setSelectedPaymentMethod(null);
+        console.log('Payment processing timeout - resetting state');
+        notificationService.warning('Payment processing is taking longer than expected. Please try again.');
+      }, 6000); // 6-second timeout (the mock API has a 2-second delay)
+    }
+    
+    // Cleanup timeout on unmount or when isProcessing changes
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isProcessing]);
   
   // Handle form input changes
   const handleInputChange = (fieldId: string, value: any) => {
@@ -60,7 +106,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   };
   
   // Handle button click
-  const handleButtonClick = (action: string, data?: any) => {
+  const handleButtonClick = (action: string, data?: any): void => {
     // Format as a special submission message
     const submissionData = {
       action: action,
@@ -88,6 +134,39 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
     handleButtonClick(action, selectionType === 'radio' ? selection : selection);
   };
   
+  // Payment method selection handler
+  const handlePaymentMethodSelection = (type: string) => {
+    setSelectedPaymentMethod(type);
+  };
+  
+  // Handle payment submission
+  const handlePaymentSubmit = (paymentContent: PaymentContent) => {
+    if (!selectedPaymentMethod) {
+      notificationService.warning('Please select a payment method');
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    // Format payment data
+    const paymentData = {
+      amount: paymentContent.totalAmount,
+      currency: paymentContent.currency,
+      paymentMethod: selectedPaymentMethod,
+      items: paymentContent.items || []
+    };
+    
+    // Send submission with payment data
+    handleButtonClick(paymentContent.submitButton.onSubmit, paymentData);
+    
+    // Since we can't track the response, use a setTimeout to reset the state
+    // This simulates waiting for the response, since our mock API has a 2-second delay
+    setTimeout(() => {
+      setIsProcessing(false);
+      setSelectedPaymentMethod(null);
+    }, 3000);
+  };
+
   // Function to render different content types
   const renderContent = (content: MessageContent, index: number) => {
     switch (content.type) {
@@ -550,7 +629,301 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
             </ol>
           </div>
         );
+
+      case 'payment':
+        return (
+          <div className="mt-2 bg-white rounded-lg p-4 border border-secondary-200">
+            <div className="font-medium text-lg mb-3">{content.title}</div>
+            
+            {content.description && (
+              <p className="text-secondary-600 mb-4">{content.description}</p>
+            )}
+            
+            {/* Show items if available */}
+            {content.items && content.items.length > 0 && (
+              <div className="mb-4 border-b border-secondary-200 pb-4">
+                <div className="font-medium mb-2">Order Summary</div>
+                <div className="space-y-2">
+                  {content.items.map((item, itemIndex) => (
+                    <div key={itemIndex} className="flex justify-between items-center">
+                      <div className="flex items-center">
+                        {item.imageUrl && (
+                          <img 
+                            src={item.imageUrl} 
+                            alt={item.name} 
+                            className="w-10 h-10 object-cover rounded mr-2" 
+                          />
+                        )}
+                        <div>
+                          <div className="font-medium">{item.name}</div>
+                          {item.description && (
+                            <div className="text-sm text-secondary-500">{item.description}</div>
+                          )}
+                          <div className="text-sm">
+                            Qty: {item.quantity} × {item.currency} {item.price.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="font-medium">
+                        {item.currency} {(item.price * item.quantity).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex justify-between items-center font-medium mt-4 pt-2 border-t border-secondary-100">
+                  <div>Total</div>
+                  <div>{content.currency} {content.totalAmount.toFixed(2)}</div>
+                </div>
+              </div>
+            )}
+            
+            {/* Payment Methods */}
+            <div className="mb-4">
+              <div className="font-medium mb-2">Payment Method</div>
+              <div className="space-y-2">
+              {content.paymentMethods.map((method, methodIndex) => (
+                  <div 
+                    key={methodIndex}
+                    onClick={() => handlePaymentMethodSelection(method.type)}
+                    className={`p-3 border rounded-lg cursor-pointer flex items-center ${
+                      selectedPaymentMethod === method.type 
+                        ? 'border-primary-500 bg-primary-50' 
+                        : 'border-secondary-200 hover:border-secondary-300'
+                    }`}
+                  >
+                    {method.icon && (
+                      <div className="mr-3">
+                        {method.type === 'card' && (
+                          <svg className="w-6 h-6 text-primary-600" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                          </svg>
+                        )}
+                        {method.type === 'bank' && (
+                          <svg className="w-6 h-6 text-primary-600" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/>
+                          </svg>
+                        )}
+                        {method.type === 'wallet' && (
+                          <svg className="w-6 h-6 text-primary-600" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                          </svg>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex-grow">
+                      <div className="font-medium">{method.label}</div>
+                      {method.description && (
+                        <div className="text-sm text-secondary-500">{method.description}</div>
+                      )}
+                    </div>
+                    <div className="ml-2">
+                      <div className={`w-5 h-5 rounded-full border ${
+                        selectedPaymentMethod === method.type 
+                          ? 'border-primary-500 bg-primary-500' 
+                          : 'border-secondary-300'
+                      }`}>
+                        {selectedPaymentMethod === method.type && (
+                          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Payment form would be shown here based on selected method */}
+            {selectedPaymentMethod === 'card' && (
+              <div className="mb-4 p-3 border border-secondary-200 rounded-lg">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-1">
+                      Card Number
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="1234 5678 9012 3456"
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-md"
+                    />
+                  </div>
+                  <div className="flex space-x-3">
+                    <div className="w-1/2">
+                      <label className="block text-sm font-medium text-secondary-700 mb-1">
+                        Expiry Date
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder="MM/YY"
+                        className="w-full px-3 py-2 border border-secondary-300 rounded-md"
+                      />
+                    </div>
+                    <div className="w-1/2">
+                      <label className="block text-sm font-medium text-secondary-700 mb-1">
+                        Security Code
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder="CVC"
+                        className="w-full px-3 py-2 border border-secondary-300 rounded-md"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-1">
+                      Name on Card
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="John Smith"
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-md"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {selectedPaymentMethod === 'bank' && (
+              <div className="mb-4 p-3 border border-secondary-200 rounded-lg">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-1">
+                      Account Holder Name
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="John Smith"
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-1">
+                      Account Number
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="0123456789"
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-1">
+                      Routing Number
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="123456789"
+                      className="w-full px-3 py-2 border border-secondary-300 rounded-md"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {selectedPaymentMethod === 'wallet' && (
+              <div className="mb-4 p-3 border border-secondary-200 rounded-lg">
+                <div className="text-center py-2">
+                  <div className="font-medium">Digital Wallet Selected</div>
+                  <p className="text-secondary-600 text-sm">You'll be redirected to complete payment</p>
+                </div>
+              </div>
+            )}
+            
+            <button
+  onClick={() => handlePaymentSubmit(content)}
+  disabled={isProcessing || !selectedPaymentMethod}
+  className={`w-full py-2 rounded-lg ${
+    isProcessing || !selectedPaymentMethod
+      ? 'bg-secondary-300 text-secondary-500 cursor-not-allowed'
+      : 'bg-primary-600 text-white hover:bg-primary-700'
+  } transition-colors`}
+>
+  {isProcessing ? (
+    <div className="flex items-center justify-center">
+      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Processing...
+    </div>
+  ) : (
+    `Pay ${content.currency} ${content.totalAmount.toFixed(2)}`
+  )}
+</button>
+          </div>
+        );
+
+      case 'paymentConfirmation':
+        const statusColor = 
+          content.status === 'success' ? 'bg-green-100 text-green-800 border-green-200' :
+          content.status === 'processing' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+          'bg-red-100 text-red-800 border-red-200';
         
+        return (
+          <div className="mt-2 bg-white rounded-lg p-4 border border-secondary-200">
+            <div className={`p-4 rounded-lg ${statusColor} mb-4 flex items-center`}>
+              {content.status === 'success' && (
+                <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {content.status === 'processing' && (
+                <svg className="w-6 h-6 mr-2 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
+              {content.status === 'failed' && (
+                <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+              <div>
+                <div className="font-medium">
+                  Payment {content.status === 'success' ? 'Successful' : 
+                           content.status === 'processing' ? 'Processing' : 'Failed'}
+                </div>
+                <div className="text-sm">
+                  {content.status === 'success' ? 'Your payment has been processed successfully.' : 
+                   content.status === 'processing' ? 'Your payment is being processed.' : 
+                   'There was an issue processing your payment.'}
+                </div>
+              </div>
+            </div>
+            
+            <div className="font-medium text-lg mb-3">{content.title}</div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-secondary-100">
+                <div className="text-secondary-600">Amount</div>
+                <div className="font-medium">{content.currency} {content.amount.toFixed(2)}</div>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-secondary-100">
+                <div className="text-secondary-600">Transaction ID</div>
+                <div className="font-medium">{content.transactionId}</div>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-secondary-100">
+                <div className="text-secondary-600">Date</div>
+                <div className="font-medium">{new Date(content.timestamp).toLocaleString()}</div>
+              </div>
+            </div>
+            
+            {content.receiptUrl && content.status === 'success' && (
+              <a 
+                href={content.receiptUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="mt-4 inline-block px-4 py-2 bg-secondary-100 text-secondary-700 rounded hover:bg-secondary-200 transition-colors"
+              >
+                View Receipt
+              </a>
+            )}
+          </div>
+        );
+      
       default:
         return null;
     }
@@ -605,3 +978,5 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
     </div>
   );
 };
+
+export default ChatBubble;
